@@ -1,0 +1,64 @@
+{
+    "knowledge_bases": [
+      {
+        "name": "lamapi",
+        "url": "https://lamapi.hel.sintef.cloud/lookup/entity-retrieval",
+        "credentials": {
+          "token": "<YOUR_LAMAPI_TOKEN>"
+        },
+        "type": "lamapi",
+        "supported_column_types": ["PERSON", "ORGANIZATION", "LOCATION", "EVENT", "WORK", "LITERAL", "MIXED", "UNKNOWN"],
+        "enabled": true,
+        "priority": 1,
+        "parameters": {
+          "kind": "entity",
+          "kg": "wikidata",
+          "fuzzy": "True"
+        }
+      },
+      {
+        "name": "geonames",
+        "url": "http://api.geonames.org/searchJSON",
+        "credentials": {
+          "username": "<YOUR_GEONAMES_USERNAME>"
+        },
+        "type": "geonames",
+        "supported_column_types": ["LOCATION"],
+        "enabled": true,
+        "priority": 2,
+        "parameters": {
+          "style": "FULL",
+          "maxRows": 10
+        }
+      },
+      {
+        "name": "alligator",
+        "url": "https://alligator.hel.sintef.cloud",
+        "credentials": {
+          "token": "<YOUR_ALLIGATOR_TOKEN>"
+        },
+        "type": "alligator",
+        "supported_column_types": ["PERSON", "ORGANIZATION"],
+        "enabled": false,
+        "priority": 3,
+        "parameters": {
+          "fuzzy": true,
+          "timeout": 30,
+          "note": "Disabled due to slow async processing - better for batch jobs"
+        }
+      },
+      {
+        "name": "wikidata_sparql",
+        "url": "https://query.wikidata.org/sparql",
+        "credentials": {},
+        "type": "sparql",
+        "supported_column_types": ["PERSON", "ORGANIZATION", "LOCATION", "EVENT", "WORK"],
+        "enabled": false,
+        "priority": 4,
+        "parameters": {
+          "timeout": 30000,
+          "note": "Disabled due to connectivity issues - can be re-enabled later"
+        }
+      }
+    ]
+  }

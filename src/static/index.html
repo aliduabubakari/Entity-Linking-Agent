@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Entity Linking System</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        input, select, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+        pre { background-color: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Entity Linking Agentic System</h1>
+        
+        <div class="card info">
+            <h2>System Status</h2>
+            <p>Multi-agent system for entity linking in tables using LangGraph</p>
+            <p><strong>Active Knowledge Bases:</strong> LamAPI (General Entities) + GeoNames (Locations)</p>
+            <p><a href="/api/health" target="_blank">🏥 Check System Health</a> | <a href="/docs" target="_blank">📖 API Documentation</a></p>
+        </div>
+
+        <div class="card">
+            <h2>📊 CSV File Upload Test</h2>
+            <form id="csvForm">
+                <p><strong>Upload a CSV file and select a column for entity linking:</strong></p>
+                <input type="file" id="csvFile" accept=".csv" required>
+                <input type="text" id="columnName" placeholder="Column name (e.g., 'Scientists', 'Cities')" required>
+                <textarea id="tableContext" placeholder='Table context (JSON, e.g., {"domain": "science"})' rows="2">{}</textarea>
+                <button type="submit">🚀 Process CSV</button>
+            </form>
+            <div id="csvResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>⚡ Quick JSON Test</h2>
+            <form id="jsonForm">
+                <input type="text" id="quickColumnName" placeholder="Column name" value="Famous Scientists">
+                <textarea id="quickValues" placeholder="Enter values (one per line)" rows="4">Einstein
+Newton
+Tesla
+Darwin</textarea>
+                <input type="text" id="quickContext" placeholder='Context (JSON)' value='{"domain": "science"}'>
+                <button type="submit">🔍 Link Entities</button>
+            </form>
+            <div id="jsonResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>📝 Example cURL Commands</h2>
+            <pre>
+# Test with scientists
+curl -X POST "http://localhost:8000/api/entity-linking" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "column_name": "Scientists",
+    "column_values": ["Einstein", "Newton", "Tesla"],
+    "table_context": {"domain": "science"}
+  }'
+
+# Test with cities  
+curl -X POST "http://localhost:8000/api/entity-linking" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "column_name": "Cities",
+    "column_values": ["Paris", "London", "Berlin"],
+    "table_context": {"domain": "geography"}
+  }'
+
+# Check results (replace REQUEST_ID)
+curl "http://localhost:8000/api/entity-linking/REQUEST_ID"
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        // CSV Form Handler
+        document.getElementById('csvForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const file = document.getElementById('csvFile').files[0];
+            const columnName = document.getElementById('columnName').value;
+            const tableContext = document.getElementById('tableContext').value;
+            
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+            
+            formData.append('file', file);
+            formData.append('column_name', columnName);
+            formData.append('table_context', tableContext);
+            
+            document.getElementById('csvResult').innerHTML = '<p>⏳ Processing CSV file...</p>';
+            
+            try {
+                const response = await fetch('/api/entity-linking/csv', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.request_id) {
+                    document.getElementById('csvResult').innerHTML = `
+                        <div class="success">
+                            <h3>✅ CSV Uploaded Successfully!</h3>
+                            <p><strong>Request ID:</strong> ${result.request_id}</p>
+                            <p><strong>File:</strong> ${result.csv_info.filename}</p>
+                            <p><strong>Column:</strong> ${result.column_info.column_name}</p>
+                            <p><strong>Values:</strong> ${result.column_info.value_count}</p>
+                            <p><strong>Sample:</strong> ${result.column_info.sample_values.join(', ')}</p>
+                            <button onclick="checkStatus('${result.request_id}')">🔍 Check Status</button>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('csvResult').innerHTML = `<div class="warning"><pre>${JSON.stringify(result, null, 2)}</pre></div>`;
+                }
+            } catch (error) {
+                document.getElementById('csvResult').innerHTML = `<div class="warning">❌ Error: ${error.message}</div>`;
+            }
+        });
+
+        // JSON Form Handler  
+        document.getElementById('jsonForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const columnName = document.getElementById('quickColumnName').value;
+            const valuesText = document.getElementById('quickValues').value;
+            const contextText = document.getElementById('quickContext').value;
+            
+            const values = valuesText.split('\n').filter(v => v.trim());
+            let context = {};
+            
+            try {
+                context = JSON.parse(contextText);
+            } catch (e) {
+                context = {};
+            }
+            
+            const requestData = {
+                column_name: columnName,
+                column_values: values,
+                table_context: context
+            };
+            
+            document.getElementById('jsonResult').innerHTML = '<p>⏳ Processing request...</p>';
+            
+            try {
+                const response = await fetch('/api/entity-linking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const result = await response.json();
+                
+                document.getElementById('jsonResult').innerHTML = `
+                    <div class="success">
+                        <h3>✅ Request Submitted!</h3>
+                        <p><strong>Request ID:</strong> ${result.request_id}</p>
+                        <button onclick="checkStatus('${result.request_id}')">🔍 Check Results</button>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('jsonResult').innerHTML = `<div class="warning">❌ Error: ${error.message}</div>`;
+            }
+        });
+
+        // Check Status Function
+        async function checkStatus(requestId) {
+            try {
+                const response = await fetch(`/api/entity-linking/${requestId}`);
+                const result = await response.json();
+                
+                let html = `<h3>📋 Request Status: ${result.status.toUpperCase()}</h3>`;
+                
+                if (result.status === 'completed' && result.results) {
+                    const metrics = result.results.processing_metrics;
+                    html += `
+                        <div class="success">
+                            <h4>🎯 Results Summary</h4>
+                            <p><strong>Success Rate:</strong> ${(metrics.success_rate * 100).toFixed(1)}% (${metrics.successful_links}/${metrics.total_mentions})</p>
+                            <p><strong>Avg Confidence:</strong> ${metrics.average_confidence.toFixed(2)}</p>
+                            <p><strong>Processing Time:</strong> ${metrics.processing_time.toFixed(1)}s</p>
+                            
+                            <h4>🔍 Detailed Results</h4>
+                            <div style="max-height: 400px; overflow-y: auto;">
+                    `;
+                    
+                    for (const [mention, linkResult] of Object.entries(result.results.linking_results)) {
+                        if (linkResult.selected_candidate) {
+                            const candidate = linkResult.selected_candidate;
+                            html += `
+                                <div style="border: 1px solid #ddd; margin: 10px 0; padding: 10px; border-radius: 4px;">
+                                    <strong>${mention}</strong> → <strong>${candidate.name}</strong><br>
+                                    <small>ID: ${candidate.id} | Confidence: ${linkResult.confidence.toFixed(2)}</small><br>
+                                    <em>${candidate.description || 'No description'}</em>
+                                </div>
+                            `;
+                        } else {
+                            html += `
+                                <div style="border: 1px solid #ffd700; margin: 10px 0; padding: 10px; border-radius: 4px;">
+                                    <strong>${mention}</strong> → ❌ <em>No match found</em>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    html += `</div></div>`;
+                } else if (result.status === 'processing') {
+                    html += `<p>⏳ Still processing... <button onclick="checkStatus('${requestId}')">🔄 Refresh</button></p>`;
+                } else if (result.status === 'failed') {
+                    html += `<div class="warning"><p>❌ Processing failed</p><pre>${JSON.stringify(result.errors, null, 2)}</pre></div>`;
+                }
+                
+                document.getElementById('csvResult').innerHTML = html;
+                document.getElementById('jsonResult').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+    </script>
+</body>
+</html>
